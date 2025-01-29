@@ -3,13 +3,40 @@ from tkinter import ttk
 from db_conn import raw_select
 
 # Function to create the Treeview widget with checkboxes
-def create_checkbox_treeview(parent):
-    treeview = ttk.Treeview(parent, columns=("cliente"), show="headings")
-    treeview.heading("cliente", text="Clientes")
-    treeview.column("cliente", width=200, anchor="w")
+def create_checkbox_treeview(parent, data):
+    treeview = ttk.Treeview(parent, columns=("cliente", "tipo", "cantidad"), show="headings")
+    treeview.heading("cliente", text="Cliente")
+    treeview.heading("tipo", text="Tipo")
+    treeview.heading("cantidad", text="Cantidad")
     
+    treeview.column("cliente", width=100, anchor="w")
+    treeview.column("tipo", width=100, anchor="w")
+    treeview.column("cantidad", width=100, anchor="w")
+
+    # Insert the data into the treeview
+    for row in data:
+        treeview.insert("", "end", values=row)
+
     treeview.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
     return treeview
+
+# Function to fetch data for the checkbox Treeview
+def fetch_client_data():
+    query = """
+        SELECT idcliente, tipo, SUM(cantidad) 
+        FROM movimientos_envases 
+        WHERE idcliente IN (
+            SELECT cliente_ruteo 
+            FROM clientesrutas 
+            WHERE SUBSTRING(cdruta, 1, LEN(cdruta)-1) IN (1,2,3,4,5,6)
+        )
+        AND idproducto IN ('401','105','500')
+        AND tipo = 'P'
+        GROUP BY idcliente, tipo
+        HAVING SUM(cantidad) <> 0
+    """
+    data = raw_select(query)
+    return [(row[0], row[1], row[2]) for row in data] if data else []
 
 # Function to create filter selectors with dropdown menus
 def create_filter_selector(root, label_text, fetch_function):
@@ -77,8 +104,9 @@ def setup_window():
     clear_button = tk.Button(button_frame, text="Borrar Filtros", command=lambda: clear_filters(reparto_var, producto_var), width=15)
     clear_button.pack(side=tk.LEFT, padx=5)
 
-    # Create Treeview widget with checkboxes for clients
-    treeview = create_checkbox_treeview(root)
+    # Fetch client data and create Treeview with checkboxes
+    client_data = fetch_client_data()
+    treeview = create_checkbox_treeview(root, client_data)
 
     return root
 
