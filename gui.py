@@ -1,120 +1,175 @@
 import tkinter as tk
 from tkinter import ttk
+from tkinter import messagebox
 from db_conn import raw_select
 
-# Function to create the Treeview widget with checkboxes
-def create_checkbox_treeview(parent, data):
-    treeview = ttk.Treeview(parent, columns=("cliente", "tipo", "cantidad"), show="headings")
-    treeview.heading("cliente", text="Cliente")
-    treeview.heading("tipo", text="Tipo")
-    treeview.heading("cantidad", text="Cantidad")
-    
-    treeview.column("cliente", width=100, anchor="w")
-    treeview.column("tipo", width=100, anchor="w")
-    treeview.column("cantidad", width=100, anchor="w")
+# ----------------------------
+# FUNCIONES MODIFICADAS PARA SELECCIÓN MÚLTIPLE
+# ----------------------------
 
-    # Insert the data into the treeview
-    for row in data:
-        treeview.insert("", "end", values=row)
+def create_multi_select(parent, label_text, fetch_function):
+    frame = tk.Frame(parent)
+    frame.pack(pady=5, padx=5, fill=tk.BOTH, expand=True)
 
-    treeview.pack(padx=10, pady=10, fill=tk.BOTH, expand=True)
-    return treeview
+    label = tk.Label(frame, text=label_text, anchor="w")
+    label.pack(side=tk.TOP, anchor="w")
 
-# Function to fetch data for the checkbox Treeview
-def fetch_client_data():
+    listbox = tk.Listbox(
+        frame, 
+        selectmode=tk.EXTENDED,  # Permite selección múltiple con Ctrl y Shift
+        width=30, 
+        height=6,
+        exportselection=False
+    )
+    scrollbar = tk.Scrollbar(frame, orient="vertical", command=listbox.yview)
+    listbox.config(yscrollcommand=scrollbar.set)
+
+    # Cargar opciones
+    options = fetch_function()
+    for item in options:
+        listbox.insert(tk.END, item)
+
+    listbox.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+    scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+
+    return listbox, frame
+
+# Obtener IDs seleccionados correctamente
+def get_selected_ids(listbox):
+    selected = [listbox.get(i).split(" - ")[0] for i in listbox.curselection()]
+    return ",".join([f"'{id}'" for id in selected]) if selected else None
+
+# ----------------------------
+# FUNCIONES DE DATOS ACTUALIZADAS
+# ----------------------------
+
+def fetch_repartos():
+    query = "SELECT Codigo, Descrp FROM repartos"
+    data = raw_select(query)
+    return [f"{row[0]} - {row[1]}" for row in data] if data else []
+
+def fetch_productos():
+    query = "SELECT idProducto, Descripcion FROM productos"
+    data = raw_select(query)
+    return [f"{row[0]} - {row[1]}" for row in data] if data else []
+
+def fetch_client_data(repartos=None, productos=None):
     query = """
-        SELECT idcliente, tipo, SUM(cantidad) 
+        SELECT IdCliente, Tipo, SUM(Cantidad) 
         FROM movimientos_envases 
-        WHERE idcliente IN (
+        WHERE IdCliente IN (
             SELECT cliente_ruteo 
             FROM clientesrutas 
             WHERE SUBSTRING(cdruta, 1, LEN(cdruta)-1) IN (1,2,3,4,5,6)
         )
-        AND idproducto IN ('401','105','500')
-        AND tipo = 'P'
-        GROUP BY idcliente, tipo
-        HAVING SUM(cantidad) <> 0
+        AND Tipo = 'P'
     """
+    
+    if productos:
+        query += f" AND IdProducto IN ({productos})"
+    else:
+        query += " AND IdProducto IN ('401','105','500')"
+    
+    if repartos:
+        query += f" AND IdReparto IN ({repartos})"
+    
+    query += " GROUP BY IdCliente, Tipo HAVING SUM(Cantidad) <> 0"
+    
     data = raw_select(query)
     return [(row[0], row[1], row[2]) for row in data] if data else []
 
-# Function to create filter selectors with dropdown menus
-def create_filter_selector(root, label_text, fetch_function):
-    frame = tk.Frame(root)
-    frame.pack(pady=5, padx=5, fill=tk.X)
+# ----------------------------
+# FUNCIONES DE FILTRADO
+# ----------------------------
 
-    label = tk.Label(frame, text=label_text, anchor="w")
-    label.pack(side=tk.LEFT, padx=(0, 5))
+def apply_filters(treeview, reparto_listbox, producto_listbox):
+    try:
+        repartos = get_selected_ids(reparto_listbox)
+        productos = get_selected_ids(producto_listbox)
+        
+        filtered_data = fetch_client_data(repartos, productos)
+        
+        treeview.delete(*treeview.get_children())
+        for row in filtered_data:
+            treeview.insert("", tk.END, values=row)
+            
+    except Exception as e:
+        messagebox.showerror("Error", f"Error al aplicar filtros:\n{str(e)}")
 
-    selected_value = tk.StringVar()
-    dropdown = ttk.Combobox(frame, textvariable=selected_value, state="readonly", width=25)
-    dropdown.pack(side=tk.LEFT, padx=(0, 10))
+def clear_filters(treeview, reparto_listbox, producto_listbox):
+    reparto_listbox.selection_clear(0, tk.END)
+    producto_listbox.selection_clear(0, tk.END)
+    
+    original_data = fetch_client_data()
+    treeview.delete(*treeview.get_children())
+    for row in original_data:
+        treeview.insert("", tk.END, values=row)
 
-    options = fetch_function()
-    dropdown["values"] = options
+# ----------------------------
+# INTERFAZ ACTUALIZADA
+# ----------------------------
 
-    return selected_value, dropdown, frame
-
-# Function to fetch repartos
-def fetch_repartos():
-    query = "SELECT descrp FROM repartos"
-    data = raw_select(query)
-    return [row[0] for row in data] if data else []
-
-# Function to fetch productos
-def fetch_productos():
-    query = "SELECT descripcion FROM productos"
-    data = raw_select(query)
-    return [row[0] for row in data] if data else []
-
-# Function to apply filters
-def apply_filters():
-    print("Aplicar filtros")
-
-# Function to clear filters
-def clear_filters(reparto_var, producto_var):
-    reparto_var.set("")
-    producto_var.set("")
-    print("Filtros borrados")
-
-# Function to set up the main window
 def setup_window():
     root = tk.Tk()
     root.title("Clientes y Filtros")
-    root.geometry("500x400")
-
-    # Create top frame for filters and buttons
-    top_frame = tk.Frame(root)
-    top_frame.pack(pady=10, padx=10, fill=tk.X)
-
-    # Create filters for Repartos and Productos in the same line
-    filter_frame = tk.Frame(top_frame)
-    filter_frame.pack(side=tk.TOP, fill=tk.X)
-
-    reparto_var, reparto_dropdown, reparto_frame = create_filter_selector(filter_frame, "Seleccione Reparto:", fetch_repartos)
-    producto_var, producto_dropdown, producto_frame = create_filter_selector(filter_frame, "Seleccione Producto:", fetch_productos)
-
-    # Create buttons to apply and clear filters
-    button_frame = tk.Frame(top_frame)
-    button_frame.pack(side=tk.TOP, fill=tk.X)
-
-    apply_button = tk.Button(button_frame, text="Aplicar Filtros", command=apply_filters, width=15)
-    apply_button.pack(side=tk.LEFT, padx=5)
-
-    clear_button = tk.Button(button_frame, text="Borrar Filtros", command=lambda: clear_filters(reparto_var, producto_var), width=15)
-    clear_button.pack(side=tk.LEFT, padx=5)
-
-    # Fetch client data and create Treeview with checkboxes
-    client_data = fetch_client_data()
-    treeview = create_checkbox_treeview(root, client_data)
-
+    root.geometry("1400x750")  # Tamaño más grande
+    
+    main_frame = tk.Frame(root)
+    main_frame.pack(padx=15, pady=15, fill=tk.BOTH, expand=True)
+    
+    filter_container = tk.Frame(main_frame)
+    filter_container.pack(fill=tk.X, pady=10)
+    
+    reparto_listbox, _ = create_multi_select(filter_container, "Repartos:", fetch_repartos)
+    producto_listbox, _ = create_multi_select(filter_container, "Productos:", fetch_productos)
+    
+    button_frame = tk.Frame(main_frame)
+    button_frame.pack(pady=10)
+    
+    btn_apply = tk.Button(
+        button_frame, 
+        text="Aplicar Filtros", 
+        command=lambda: apply_filters(treeview, reparto_listbox, producto_listbox),
+        width=20
+    )
+    btn_apply.pack(side=tk.LEFT, padx=10)
+    
+    btn_clear = tk.Button(
+        button_frame, 
+        text="Limpiar Filtros", 
+        command=lambda: clear_filters(treeview, reparto_listbox, producto_listbox),
+        width=20
+    )
+    btn_clear.pack(side=tk.LEFT, padx=10)
+    
+    tree_frame = tk.Frame(main_frame)
+    tree_frame.pack(fill=tk.BOTH, expand=True)
+    
+    treeview = ttk.Treeview(tree_frame, columns=("Cliente", "Tipo", "Cantidad"), show="headings")
+    
+    treeview.heading("Cliente", text="Cliente", anchor=tk.W)
+    treeview.heading("Tipo", text="Tipo", anchor=tk.CENTER)
+    treeview.heading("Cantidad", text="Cantidad", anchor=tk.E)
+    
+    treeview.column("Cliente", width=500, stretch=tk.YES)
+    treeview.column("Tipo", width=250, stretch=tk.YES)
+    treeview.column("Cantidad", width=250, stretch=tk.YES)
+    
+    vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=treeview.yview)
+    hsb = ttk.Scrollbar(tree_frame, orient=tk.HORIZONTAL, command=treeview.xview)
+    treeview.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
+    
+    treeview.grid(row=0, column=0, sticky="nsew")
+    vsb.grid(row=0, column=1, sticky="ns")
+    hsb.grid(row=1, column=0, sticky="ew")
+    
+    tree_frame.grid_rowconfigure(0, weight=1)
+    tree_frame.grid_columnconfigure(0, weight=1)
+    
+    clear_filters(treeview, reparto_listbox, producto_listbox)
+    
     return root
 
-# Main function to run the application
-def main():
-    root = setup_window()
-    root.mainloop()
-
-# Entry point
 if __name__ == "__main__":
-    main()
+    app = setup_window()
+    app.mainloop()
