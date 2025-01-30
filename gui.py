@@ -16,7 +16,7 @@ def create_multi_select(parent, label_text, fetch_function):
 
     listbox = tk.Listbox(
         frame, 
-        selectmode=tk.EXTENDED,  # Permite selección múltiple con Ctrl y Shift
+        selectmode=tk.MULTIPLE,  # Permite selección múltiple solo con clics
         width=30, 
         height=6,
         exportselection=False
@@ -111,8 +111,8 @@ def clear_filters(treeview, reparto_listbox, producto_listbox):
 
 def setup_window():
     root = tk.Tk()
-    root.title("Clientes y Filtros")
-    root.geometry("1400x750")  # Tamaño más grande
+    root.title("Comodato")
+    root.geometry("1400x750")  
     
     main_frame = tk.Frame(root)
     main_frame.pack(padx=15, pady=15, fill=tk.BOTH, expand=True)
