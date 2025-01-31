@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 from db_conn import raw_select
+from db_conn import engine 
 
 # ----------------------------
 # FUNCIONES MODIFICADAS PARA SELECCIÓN MÚLTIPLE
@@ -59,7 +60,7 @@ def fetch_productos():
 
 def fetch_client_data(repartos=None, productos=None):
     query = """
-        SELECT IdCliente, Tipo, SUM(Cantidad) 
+        SELECT IdCliente, Tipo, IdProducto, SUM(Cantidad) 
         FROM movimientos_envases 
         WHERE IdCliente IN (
             SELECT cliente_ruteo 
@@ -77,10 +78,10 @@ def fetch_client_data(repartos=None, productos=None):
     if repartos:
         query += f" AND IdReparto IN ({repartos})"
     
-    query += " GROUP BY IdCliente, Tipo HAVING SUM(Cantidad) <> 0"
+    query += " GROUP BY IdCliente, Tipo, IdProducto HAVING SUM(Cantidad) <> 0"
     
     data = raw_select(query)
-    return [(row[0], row[1], row[2]) for row in data] if data else []
+    return [(row[0], row[1], row[2], row[3]) for row in data] if data else []
 
 # ----------------------------
 # FUNCIONES DE FILTRADO ACTUALIZADAS
@@ -135,16 +136,76 @@ def confirm_and_send():
             messagebox.showerror("Error", f"Error al enviar datos:\n{str(e)}")
 
 def execute_insert():
-    # FUNCIÓN PARA IMPLEMENTAR EL INSERT EN LA BASE DE DATOS
-    # (Actualmente es solo un placeholder)
+    Session = sessionmaker(bind=engine)
+    session = Session()
     
-    # Obtener los datos necesarios para el INSERT
-    # Ejemplo de lógica futura:
-    # 1. Recoger datos de la tabla
-    # 2. Generar consulta INSERT
-    # 3. Ejecutar transacción
-    
-    pass  # Eliminar este pass cuando se implemente la lógica
+    try:
+        # Obtener todos los registros del treeview
+        records = [treeview.item(item)['values'] for item in treeview.get_children()]
+        
+        # Validar datos antes de ejecutar
+        validate_records(records)
+        
+        # Ejecutar en transacción
+        for record in records:
+            id_cliente = record[0]
+            id_producto = record[2]  # Asumiendo estructura: (Cliente, Tipo, Producto, Cantidad)
+            cantidad = record[3]
+            
+            # Primer INSERT (Comodato)
+            session.execute(text("""
+                INSERT INTO dbo.Movimientos_Envases 
+                (Tipo, Clase, IdReparto, IdCliente, IdProducto, Cantidad, Fecha, Vencimiento, usuario)
+                VALUES ('C','A',0,:id_cliente,:id_producto,:cantidad,
+                CONVERT(varchar(10),GETDATE(),103),CONVERT(varchar(10),GETDATE(),103), 'AIRTECH')
+            """), {
+                'id_cliente': id_cliente,
+                'id_producto': id_producto,
+                'cantidad': cantidad
+            })
+            
+            # Segundo INSERT (Prestamo negativo)
+            session.execute(text("""
+                INSERT INTO dbo.Movimientos_Envases 
+                (Tipo, Clase, IdReparto, IdCliente, IdProducto, Cantidad, Fecha, Vencimiento, usuario)
+                VALUES ('P','A',0,:id_cliente,:id_producto,:cantidad_negativa,
+                CONVERT(varchar(10),GETDATE(),103),CONVERT(varchar(10),GETDATE(),103), 'AIRTECH')
+            """), {
+                'id_cliente': id_cliente,
+                'id_producto': id_producto,
+                'cantidad_negativa': -1 * cantidad
+            })
+        
+        session.commit()
+        
+    except Exception as e:
+        session.rollback()
+        raise Exception(f"Error en transacción: {str(e)}")
+    finally:
+        session.close()
+def validate_records(records):
+    if not records:
+        raise ValueError("No hay registros para procesar")
+        
+    for idx, record in enumerate(records, 1):
+        try:
+            if len(record) < 4:
+                raise ValueError(f"Registro {idx}: Formato incorrecto")
+                
+            # Validar ID Cliente
+            if not str(record[0]).isdigit():
+                raise ValueError(f"Registro {idx}: ID Cliente inválido")
+                
+            # Validar ID Producto
+            if not str(record[2]).isdigit():
+                raise ValueError(f"Registro {idx}: ID Producto inválido")
+                
+            # Validar Cantidad
+            if not isinstance(record[3], (int, float)) or record[3] <= 0:
+                raise ValueError(f"Registro {idx}: Cantidad debe ser un número positivo")
+                
+        except IndexError as e:
+            raise ValueError(f"Registro {idx}: Campos incompletos") from e
 
 # ----------------------------
 # FUNCIONES PARA DETECTAR CAMBIOS EN LOS FILTROS
@@ -206,16 +267,21 @@ def setup_window():
     tree_frame = tk.Frame(main_frame)
     tree_frame.pack(fill=tk.BOTH, expand=True)
     
-    treeview = ttk.Treeview(tree_frame, columns=("Cliente", "Tipo", "Cantidad"), show="headings")
+    treeview = ttk.Treeview(tree_frame, columns=("Cliente", "Tipo", "Producto", "Cantidad"), show="headings")
     
+    # Configurar los encabezados
     treeview.heading("Cliente", text="Cliente", anchor=tk.W)
     treeview.heading("Tipo", text="Tipo", anchor=tk.CENTER)
+    treeview.heading("Producto", text="Producto", anchor=tk.CENTER)
     treeview.heading("Cantidad", text="Cantidad", anchor=tk.E)
+
+    # Configurar las columnas
+    treeview.column("Cliente", width=400, stretch=tk.YES)
+    treeview.column("Tipo", width=200, stretch=tk.YES)
+    treeview.column("Producto", width=200, stretch=tk.YES)
+    treeview.column("Cantidad", width=200, stretch=tk.YES)
     
-    treeview.column("Cliente", width=500, stretch=tk.YES)
-    treeview.column("Tipo", width=250, stretch=tk.YES)
-    treeview.column("Cantidad", width=250, stretch=tk.YES)
-    
+    # Configurar la barra de desplazamiento
     vsb = ttk.Scrollbar(tree_frame, orient=tk.VERTICAL, command=treeview.yview)
     hsb = ttk.Scrollbar(tree_frame, orient=tk.HORIZONTAL, command=treeview.xview)
     treeview.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
