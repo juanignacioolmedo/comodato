@@ -97,7 +97,7 @@ def apply_filters(treeview, reparto_listbox, producto_listbox, btn_new):
         for row in filtered_data:
             treeview.insert("", tk.END, values=row)
         
-        # Activar el botón "Enviar Datos" después de aplicar los filtros
+        # Activar el botón "Nuevo Botón" después de aplicar los filtros
         btn_new.config(state=tk.NORMAL)
             
     except Exception as e:
@@ -112,39 +112,15 @@ def clear_filters(treeview, reparto_listbox, producto_listbox, btn_new):
     for row in original_data:
         treeview.insert("", tk.END, values=row)
     
-    # Desactivar el botón "Enviar Datos" al limpiar los filtros
+    # Desactivar el botón "Nuevo Botón" al limpiar los filtros
     btn_new.config(state=tk.DISABLED)
 
 # ----------------------------
-# NUEVAS FUNCIONES PARA CONFIRMACIÓN Y ENVÍO
+# NUEVA FUNCIÓN PARA MOSTRAR EL MENSAJE
 # ----------------------------
 
-def confirm_and_send():
-    # Mostrar diálogo de confirmación
-    confirmacion = messagebox.askyesno(
-        "Confirmar acción",
-        "¿Está seguro que desea enviar estos cambios?"
-    )
-    
-    if confirmacion:
-        try:
-            # Lógica para enviar datos (aquí irá el INSERT futuro)
-            execute_insert()
-            messagebox.showinfo("Éxito", "Datos enviados correctamente")
-        except Exception as e:
-            messagebox.showerror("Error", f"Error al enviar datos:\n{str(e)}")
-
-def execute_insert():
-    # FUNCIÓN PARA IMPLEMENTAR EL INSERT EN LA BASE DE DATOS
-    # (Actualmente es solo un placeholder)
-    
-    # Obtener los datos necesarios para el INSERT
-    # Ejemplo de lógica futura:
-    # 1. Recoger datos de la tabla
-    # 2. Generar consulta INSERT
-    # 3. Ejecutar transacción
-    
-    pass  # Eliminar este pass cuando se implemente la lógica
+def show_message():
+    messagebox.showinfo("Información", "BOTON ACTIVADO")
 
 # ----------------------------
 # FUNCIONES PARA DETECTAR CAMBIOS EN LOS FILTROS
@@ -196,10 +172,10 @@ def setup_window():
     
     btn_new = tk.Button(
         button_frame, 
-        text="Enviar Datos", 
-        state=tk.DISABLED,
+        text="Nuevo Botón", 
+        state=tk.DISABLED,  # Inicialmente deshabilitado
         width=20,
-        command=confirm_and_send  # Cambiamos aquí a la nueva función
+        command=lambda: show_message()  # Acción cuando se hace clic
     )
     btn_new.pack(side=tk.LEFT, padx=10)
 
