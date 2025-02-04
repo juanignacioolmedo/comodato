@@ -14,15 +14,16 @@ def create_multi_select(parent, label_text, fetch_function, on_change_callback=N
     frame = tk.Frame(parent)
     frame.pack(pady=5, padx=5, fill=tk.BOTH, expand=True)
 
-    label = tk.Label(frame, text=label_text, anchor="w")
+    label = tk.Label(frame, text=label_text, anchor="w", font=("Arial", 14, "bold"))
     label.pack(side=tk.TOP, anchor="w")
 
     listbox = tk.Listbox(
         frame, 
-        selectmode=tk.MULTIPLE,  # Permite selección múltiple solo con clics
+        selectmode=tk.EXTENDED,  # Permite selección múltiple con control y shift
         width=30, 
         height=6,
-        exportselection=False
+        exportselection=False,
+        font=("Arial", 14)  # Aumentar la fuente del Listbox
     )
     scrollbar = tk.Scrollbar(frame, orient="vertical", command=listbox.yview)
     listbox.config(yscrollcommand=scrollbar.set)
@@ -101,6 +102,7 @@ def apply_filters(treeview, reparto_listbox, producto_listbox, btn_new):
         for row in filtered_data:
             treeview.insert("", tk.END, values=row)
         
+        """
         # Imprimir en consola los datos filtrados
         print("\n" + "="*50)
         print("Registros filtrados en el treeview:")
@@ -113,7 +115,8 @@ def apply_filters(treeview, reparto_listbox, producto_listbox, btn_new):
             print(f"{values[0]:<10} | {values[1]:<5} | {values[2]:<10} | {values[3]:<10}")
         
         print("="*50 + "\n")
-        
+        """
+
         # Activar el botón "Enviar Datos"
         btn_new.config(state=tk.NORMAL)
             
@@ -162,18 +165,14 @@ def confirm_and_send(treeview):
                 loading_window.destroy()
 
 def execute_insert(treeview):
-
     try:
         # Crear una sesión para interactuar con la base de datos
         Session = sessionmaker(bind=engine)
-        session = Session()
-
+        session = Session()        
         # Obtener todos los registros del treeview
         records = [treeview.item(item)['values'] for item in treeview.get_children()]
-
         # Validar datos antes de ejecutar
         validate_records(records)
-
         # Contador para verificar inserts exitosos
         total_records = len(records)
         successful_records = 0
@@ -181,8 +180,11 @@ def execute_insert(treeview):
         # Ejecutar en transacción
         for record in records:
             id_cliente = record[0]
-            id_producto = record[2]  # Asumiendo estructura: (Cliente, Tipo, Producto, Cantidad)
+            id_producto = record[2]
             cantidad = record[3]
+            
+            # Convertir a valor absoluto (opción activa)
+            cantidad = abs(float(cantidad))
 
             # Primer INSERT (Comodato)
             session.execute(text("""
@@ -208,26 +210,24 @@ def execute_insert(treeview):
             """), {
                 'id_cliente': int(id_cliente),  
                 'id_producto': int(id_producto),
-                'cantidad': float(cantidad)
+                'cantidad': cantidad  # Usamos el valor ya convertido
             })
 
-            successful_records += 1  # Incrementar contador de registros exitosos
+            successful_records += 1 # Incrementar contador de registros exitosos
 
         session.commit()
-
+        
         # Verificación final
         if successful_records == total_records:
             messagebox.showinfo("",f"✅ Todos los registros se insertaron correctamente ({successful_records}/{total_records})")
         else:
             messagebox.showinfo("",f"⚠️ Solo se insertaron {successful_records} de {total_records} registros")
 
-        messagebox.showinfo("Éxito", "Datos enviados correctamente")
-        # Imprimir en consola los datos filtrados
     except Exception as e:
         session.rollback()
         raise Exception(f"Error en transacción: {str(e)}")
     finally:
-        session.close()  # Cerrar la sesión
+        session.close()
 
 def verify_inserts(id_cliente, id_producto):
     from db_conn import raw_select  # Importar la función de consulta
@@ -259,10 +259,7 @@ def validate_records(records):
             id_cliente = int(record[0])
             id_producto = int(record[2])
             cantidad = float(record[3])
-            
-            if cantidad <= 0:
-                raise ValueError(f"Registro {idx}: Cantidad debe ser positiva")
-                
+               
         except ValueError as e:
             raise ValueError(f"Registro {idx}: Dato inválido - {str(e)}")
         except IndexError:
@@ -296,6 +293,10 @@ def setup_window():
     producto_listbox, _ = create_multi_select(filter_container, "Productos:", fetch_productos, 
                                               lambda event: on_filter_change(event, reparto_listbox, producto_listbox, btn_new))
     
+    # Aplicar estilos con fuente más grande
+    button_font = ("Arial", 14, "bold")  # Definir un estilo de fuente para los botones
+
+
     button_frame = tk.Frame(main_frame)
     button_frame.pack(pady=10)
     
@@ -303,7 +304,8 @@ def setup_window():
         button_frame, 
         text="Aplicar Filtros", 
         command=lambda: apply_filters(treeview, reparto_listbox, producto_listbox, btn_new),
-        width=20
+        width=20,
+        font=button_font  # Aplicar el tamaño de fuente
     )
     btn_apply.pack(side=tk.LEFT, padx=10)
     
@@ -311,7 +313,8 @@ def setup_window():
         button_frame, 
         text="Limpiar Filtros", 
         command=lambda: clear_filters(treeview, reparto_listbox, producto_listbox, btn_new),
-        width=20
+        width=20,
+        font=button_font
     )
     btn_clear.pack(side=tk.LEFT, padx=10)
     
@@ -320,9 +323,15 @@ def setup_window():
         text="Enviar Datos", 
         state=tk.DISABLED,
         width=20,
+        font=button_font,
         command=lambda: confirm_and_send(treeview)
     )
     btn_new.pack(side=tk.LEFT, padx=10)
+
+    # Crear un estilo para personalizar el Treeview
+    style = ttk.Style()
+    style.configure("Treeview", font=("Arial", 14))
+    style.configure("Treeview.Heading", font=("Arial", 16, "bold"))
 
     tree_frame = tk.Frame(main_frame)
     tree_frame.pack(fill=tk.BOTH, expand=True)

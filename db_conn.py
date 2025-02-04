@@ -1,10 +1,18 @@
+import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+
+# Obtener la cadena de conexión desde la variable de entorno
+connection_string = os.getenv("DB_CONNECTION")
+
+if not connection_string:
+    raise ValueError("⚠️ ERROR: La variable de entorno 'DB_CONNECTION' no está definida.")
+
 
 #connection_string = "mssql+pyodbc://sa:Adm%402487@localhost:1433/H2O_Belen_Full__Lunes?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
 
 # Connection string for SQL Server 
-connection_string = "mssql+pyodbc://sa:Adm%402487@192.168.100.50:1433/H2O_Belen?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
+#connection_string = "mssql+pyodbc://sa:Adm%402487@192.168.100.50:1433/H2O_Belen?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
 
 # Connection string for SQL Server with FreeTDS
 engine = create_engine(connection_string)
