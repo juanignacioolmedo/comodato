@@ -184,7 +184,7 @@ def execute_insert(treeview):
             cantidad = record[3]
             
             # Convertir a valor absoluto (opción activa)
-            cantidad = abs(float(cantidad))
+            cantidad = float(cantidad)
 
             # Primer INSERT (Comodato)
             session.execute(text("""
@@ -210,7 +210,7 @@ def execute_insert(treeview):
             """), {
                 'id_cliente': int(id_cliente),  
                 'id_producto': int(id_producto),
-                'cantidad': cantidad  # Usamos el valor ya convertido
+                'cantidad': cantidad * -1  # Usamos el valor ya convertido
             })
 
             successful_records += 1 # Incrementar contador de registros exitosos
