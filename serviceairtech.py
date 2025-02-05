@@ -8,7 +8,7 @@ def get_sql_params(bd_web):
         return []
     try:
         url = f"http://serviceairtech.com.ar/service1.asmx/getConfiguracionIni?BDCliente={bd_web}"
-        f = requests.get(url, timeout=30)
+        f = requests.get(url, timeout=60)
 
         response = f.text.split(';')
         sql_host = response[8].split('=')[1]
@@ -20,5 +20,3 @@ def get_sql_params(bd_web):
     
     except Exception as e:
         return []
-
-

@@ -290,10 +290,10 @@ def setup_window():
     
     try:
         # Levantar datos de conexion desde el archivo H2O.ini
-        bdweb = utils.get_bdweb_h2o_ini()
-        if not bdweb:
-            raise ValueError("No se pudo obtener la configuración de la base de datos desde H2O.ini")
-
+        #bdweb = utils.get_bdweb_h2o_ini()
+        #if not bdweb:
+        #    raise ValueError("No se pudo obtener la configuración de la base de datos desde H2O.ini")
+        bd_web = "TEST_473"
         print('lectura de ini:', bdweb)
         sql_params = serviceairtech.get_sql_params(bdweb)
         if not sql_params:
