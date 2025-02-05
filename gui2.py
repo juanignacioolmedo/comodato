@@ -2,9 +2,10 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 from db_conn import raw_select
-from db_conn import engine 
+from db_conn import engine, set_conn
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
+import utils, serviceairtech
 
 # ----------------------------
 # FUNCIONES MODIFICADAS PARA SELECCIÓN MÚLTIPLE
@@ -287,6 +288,37 @@ def setup_window():
     filter_container = tk.Frame(main_frame)
     filter_container.pack(fill=tk.X, pady=10)
     
+    try:
+        # Levantar datos de conexion desde el archivo H2O.ini
+        bdweb = utils.get_bdweb_h2o_ini()
+        if not bdweb:
+            raise ValueError("No se pudo obtener la configuración de la base de datos desde H2O.ini")
+
+        print('lectura de ini:', bdweb)
+        sql_params = serviceairtech.get_sql_params(bdweb)
+        if not sql_params:
+            raise ValueError("No se pudieron obtener los parámetros de conexión desde serviceairtech.")
+
+        print('sql_params:', sql_params)
+
+        #CONECTAR BASE DE DATOS LOCAL
+        server = sql_params[0]#'192.168.0.5'
+        user = sql_params[1]#'cafe'
+        password = sql_params[2]#'JumiCAFE3241'
+        database = sql_params[3]#'H2O_JUMI'
+        
+        
+        # reemplazamos el @ por su equivalente en utf-8
+        password_escaped = password.replace('@', '%40')
+
+        set_conn(server, user, password_escaped, database)
+        # input('esperar...')
+    except ValueError as e:
+        messagebox.showerror("Error de configuración", f"Error al configurar la conexión a la base de datos: {e}")
+        return
+    except Exception as e:
+        messagebox.showerror("Error inesperado", f"Error inesperado al configurar la conexión: {e}")
+        return
     # Crear los filtros con el callback para detectar cambios
     reparto_listbox, _ = create_multi_select(filter_container, "Repartos:", fetch_repartos, 
                                              lambda event: on_filter_change(event, reparto_listbox, producto_listbox, btn_new))
