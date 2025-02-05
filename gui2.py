@@ -290,10 +290,10 @@ def setup_window():
     
     try:
         # Levantar datos de conexion desde el archivo H2O.ini
-        #bdweb = utils.get_bdweb_h2o_ini()
-        #if not bdweb:
-        #    raise ValueError("No se pudo obtener la configuración de la base de datos desde H2O.ini")
-        bd_web = "TEST_473"
+        bdweb = utils.get_bdweb_h2o_ini()
+        if not bdweb:
+            raise ValueError("No se pudo obtener la configuración de la base de datos desde H2O.ini")
+
         print('lectura de ini:', bdweb)
         sql_params = serviceairtech.get_sql_params(bdweb)
         if not sql_params:
@@ -302,16 +302,19 @@ def setup_window():
         print('sql_params:', sql_params)
 
         #CONECTAR BASE DE DATOS LOCAL
-        server = sql_params[0]#'192.168.0.5'
-        user = sql_params[1]#'cafe'
-        password = sql_params[2]#'JumiCAFE3241'
-        database = sql_params[3]#'H2O_JUMI'
+        server = sql_params[0] #'192.168.100.50'
+        user = sql_params[1]#'sa'
+        password = sql_params[2]#'Adm@2487'
+        database = sql_params[3]#'H2O_Belen'
         
         
         # reemplazamos el @ por su equivalente en utf-8
         password_escaped = password.replace('@', '%40')
 
-        set_conn(server, user, password_escaped, database)
+        success, error_message = set_conn(server, user, password_escaped, database)
+        if not success:
+            messagebox.showerror("Error de Conexión", error_message)
+            return
         # input('esperar...')
     except ValueError as e:
         messagebox.showerror("Error de configuración", f"Error al configurar la conexión a la base de datos: {e}")
