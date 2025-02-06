@@ -1,13 +1,40 @@
+import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import OperationalError
+
+# Obtener la cadena de conexión desde la variable de entorno
+# connection_string = os.getenv("DB_CONNECTION")
+
+# if not connection_string:
+#     raise ValueError("⚠️ ERROR: La variable de entorno 'DB_CONNECTION' no está definida.")
+
 
 #connection_string = "mssql+pyodbc://sa:Adm%402487@localhost:1433/H2O_Belen_Full__Lunes?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
 
 # Connection string for SQL Server 
-connection_string = "mssql+pyodbc://sa:Adm%402487@192.168.100.50:1433/H2O_Belen?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
+# connection_string = "mssql+pyodbc://sa:Adm%402487@192.168.100.50:1433/H2O_Belen?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
+engine = None
+# engine = create_engine(connection_string)
 
-# Connection string for SQL Server with FreeTDS
-engine = create_engine(connection_string)
+def set_conn(server, user, passwd, database):
+    global engine
+    # Connection string for SQL Server 
+    #connection_string = "mssql+pyodbc://sa:Adm%402487@192.168.100.50:1433/H2O_Belen?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
+    timeout = 10  
+    connection_string = f"mssql+pyodbc://{user}:{passwd}@{server}:1433/{database}?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes&timeout={timeout}"
+    print('string de conexion:', connection_string)
+    
+    try:
+        engine = create_engine(connection_string, connect_args={'timeout': timeout})
+        with engine.connect():
+            print("Conexión exitosa.")
+        return True, None  # Conexión exitosa
+    except OperationalError as e:
+        return False, "Hubo un problema con la conexión. Verifique los datos de conexión."
+    except Exception as e:
+        return False, "Ocurrió un error inesperado. Verifique los datos de conexión."
+
 
 def raw_select(query):
     """
@@ -16,6 +43,7 @@ def raw_select(query):
     :param query: The SQL SELECT query.
     :return: List of results (rows).
     """
+    global engine
     Session = sessionmaker(bind=engine)
     session = Session()
 
@@ -43,7 +71,7 @@ def raw_insert(table_name, column_values, where_clause=None):
     :param column_values: Dictionary of column names and their respective values.
     :param where_clause: Optional WHERE condition to determine if the insert should proceed.
     """
-
+    global engine
     # Create a session to interact with the database
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -86,6 +114,7 @@ def raw_update(table_name, column_values, where_clause):
     :param column_values: Dictionary of column names and their new values.
     :param where_clause: WHERE condition to specify which record(s) to update.
     """
+    global engine
     # Create a session to interact with the database
     Session = sessionmaker(bind=engine)
     session = Session()
@@ -115,8 +144,8 @@ where_clause = "IdListaPrecio = 'KK'"  # Condition to specify which record to up
 raw_update(table_name, column_values, where_clause)
 """
 
-from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+# from sqlalchemy import create_engine, text
+# from sqlalchemy.orm import sessionmaker
 
 def raw_delete(table_name, where_clause):
     """
@@ -125,7 +154,7 @@ def raw_delete(table_name, where_clause):
     :param table_name: The table from which the record(s) should be deleted.
     :param where_clause: WHERE condition to specify which record(s) to delete.
     """
-
+    global engine
     # Create a session to interact with the database
     Session = sessionmaker(bind=engine)
     session = Session()
