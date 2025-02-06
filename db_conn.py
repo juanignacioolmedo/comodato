@@ -1,6 +1,7 @@
 import os
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
+from sqlalchemy.exc import OperationalError
 
 # Obtener la cadena de conexión desde la variable de entorno
 # connection_string = os.getenv("DB_CONNECTION")
@@ -20,14 +21,19 @@ def set_conn(server, user, passwd, database):
     global engine
     # Connection string for SQL Server 
     #connection_string = "mssql+pyodbc://sa:Adm%402487@192.168.100.50:1433/H2O_Belen?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
-    connection_string = f"mssql+pyodbc://{user}:{passwd}@{server}:1433/{database}?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
+    timeout = 10  
+    connection_string = f"mssql+pyodbc://{user}:{passwd}@{server}:1433/{database}?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes&timeout={timeout}"
     print('string de conexion:', connection_string)
-    # Connection string for SQL Server with FreeTDS
+    
     try:
-        engine = create_engine(connection_string)
+        engine = create_engine(connection_string, connect_args={'timeout': timeout})
+        with engine.connect():
+            print("Conexión exitosa.")
+        return True, None  # Conexión exitosa
+    except OperationalError as e:
+        return False, "Hubo un problema con la conexión. Verifique los datos de conexión."
     except Exception as e:
-        print(f'error conectando: {e}')
-
+        return False, "Ocurrió un error inesperado. Verifique los datos de conexión."
 
 
 def raw_select(query):
