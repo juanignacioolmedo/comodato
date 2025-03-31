@@ -301,11 +301,16 @@ def setup_window():
 
         print('sql_params:', sql_params)
 
+        # server = "localhost"
+        # database = "H2O_Belen"
+        # user = "sa"
+        # password = "YourStrong123Passw0rd"
+        server, user, password, database = sql_params
         #CONECTAR BASE DE DATOS LOCAL
-        server = sql_params[0] #'192.168.100.50'
-        user = sql_params[1]#'sa'
-        password = sql_params[2]#'Adm@2487'
-        database = sql_params[3]#'H2O_Belen'
+        # server = sql_params[0] #'192.168.100.50'
+        # user = sql_params[1]#'sa'
+        # password = sql_params[2]#'Adm@2487'
+        # database = sql_params[3]#'H2O_Belen'
         
         
         # reemplazamos el @ por su equivalente en utf-8
@@ -313,15 +318,19 @@ def setup_window():
 
         success, error_message = set_conn(server, user, password_escaped, database)
         if not success:
-            messagebox.showerror("Error de Conexión", error_message)
-            return
+            #messagebox.showerror("Error de Conexión", error_message)
+            #return
+            root.destroy()  # Cierra la ventana creada
+            return None  # Retorna None explícitamente
         # input('esperar...')
     except ValueError as e:
         messagebox.showerror("Error de configuración", f"Error al configurar la conexión a la base de datos: {e}")
         return
     except Exception as e:
         messagebox.showerror("Error inesperado", f"Error inesperado al configurar la conexión: {e}")
-        return
+        #return
+        root.destroy()  # Cierra la ventana si hay excepción
+        return None
     # Crear los filtros con el callback para detectar cambios
     reparto_listbox, _ = create_multi_select(filter_container, "Repartos:", fetch_repartos, 
                                              lambda event: on_filter_change(event, reparto_listbox, producto_listbox, btn_new))
@@ -403,4 +412,5 @@ def setup_window():
 
 if __name__ == "__main__":
     app = setup_window()
-    app.mainloop()
+    if app:
+        app.mainloop()

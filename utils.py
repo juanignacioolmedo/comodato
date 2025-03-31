@@ -4,7 +4,8 @@ from datetime import datetime, date
 # PATH_H2O = 'C:/H2O/'
 # PATH_EXE = PATH_H2O + 'EXE/'
 PATH_H2O = './'
-PATH_EXE = PATH_H2O + 'EXE/'
+PATH_EXE = os.path.join(PATH_H2O, 'EXE')
+ini_path = os.path.join(PATH_EXE, 'H2O.ini')
 
 # root = PATH_ARCHIVOS
 DEBUG_MODE = 0
@@ -28,7 +29,7 @@ def get_bdweb_h2o_ini():
     msg = msg.replace('  ','')
     sql_params = []
     try:
-        if not os.path.exists(PATH_EXE) or not os.path.isfile(PATH_EXE+'/H2O.ini'):
+        if not os.path.exists(PATH_EXE) or not os.path.isfile(ini_path):
             raise FileNotFoundError(f"El archivo {PATH_EXE}/H2O.ini no existe.")
     
         with open(PATH_EXE+'/H2O.ini', 'r') as f:
