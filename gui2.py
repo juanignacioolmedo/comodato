@@ -314,14 +314,14 @@ def setup_window():
         success, error_message = set_conn(server, user, password_escaped, database)
         if not success:
             messagebox.showerror("Error de Conexión", error_message)
-            return
+            return root
         # input('esperar...')
     except ValueError as e:
         messagebox.showerror("Error de configuración", f"Error al configurar la conexión a la base de datos: {e}")
-        return
+        return root
     except Exception as e:
         messagebox.showerror("Error inesperado", f"Error inesperado al configurar la conexión: {e}")
-        return
+        return root
     # Crear los filtros con el callback para detectar cambios
     reparto_listbox, _ = create_multi_select(filter_container, "Repartos:", fetch_repartos, 
                                              lambda event: on_filter_change(event, reparto_listbox, producto_listbox, btn_new))

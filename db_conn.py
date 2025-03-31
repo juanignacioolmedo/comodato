@@ -12,15 +12,13 @@ from sqlalchemy.exc import OperationalError
 
 #connection_string = "mssql+pyodbc://sa:Adm%402487@localhost:1433/H2O_Belen_Full__Lunes?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
 
-# Connection string for SQL Server 
-# connection_string = "mssql+pyodbc://sa:Adm%402487@192.168.100.50:1433/H2O_Belen?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
 engine = None
 # engine = create_engine(connection_string)
 
 def set_conn(server, user, passwd, database):
     global engine
     # Connection string for SQL Server 
-    #connection_string = "mssql+pyodbc://sa:Adm%402487@192.168.100.50:1433/H2O_Belen?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
+    #connection_string = "mssql+pyodbc://sa:Adm%402487@192.168.100.50:1433/H2O_TEST_473?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
     timeout = 10  
     connection_string = f"mssql+pyodbc://{user}:{passwd}@{server}:1433/{database}?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes&timeout={timeout}"
     print('string de conexion:', connection_string)
@@ -143,9 +141,6 @@ where_clause = "IdListaPrecio = 'KK'"  # Condition to specify which record to up
 
 raw_update(table_name, column_values, where_clause)
 """
-
-# from sqlalchemy import create_engine, text
-# from sqlalchemy.orm import sessionmaker
 
 def raw_delete(table_name, where_clause):
     """
