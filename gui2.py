@@ -2,7 +2,7 @@ import tkinter as tk
 from tkinter import ttk
 from tkinter import messagebox
 from db_conn import raw_select
-from db_conn import engine, set_conn
+from db_conn import engine, set_conn, Session
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
 import utils, serviceairtech
@@ -166,9 +166,9 @@ def confirm_and_send(treeview):
                 loading_window.destroy()
 
 def execute_insert(treeview):
+    from db_conn import Session
+    session = None
     try:
-        # Crear una sesión para interactuar con la base de datos
-        Session = sessionmaker(bind=engine)
         session = Session()        
         # Obtener todos los registros del treeview
         records = [treeview.item(item)['values'] for item in treeview.get_children()]
@@ -225,10 +225,13 @@ def execute_insert(treeview):
             messagebox.showinfo("",f"⚠️ Solo se insertaron {successful_records} de {total_records} registros")
 
     except Exception as e:
-        session.rollback()
+        if session:
+            session.rollback()
         raise Exception(f"Error en transacción: {str(e)}")
     finally:
-        session.close()
+        if session:
+            session.close()
+        Session.remove()
 
 def verify_inserts(id_cliente, id_producto):
     from db_conn import raw_select  # Importar la función de consulta
@@ -302,20 +305,26 @@ def setup_window():
         print('sql_params:', sql_params)
 
         #CONECTAR BASE DE DATOS LOCAL
-        server = sql_params[0] #'192.168.100.50'
-        user = sql_params[1]#'sa'
-        password = sql_params[2]#'Adm@2487'
-        database = sql_params[3]#'H2O_Belen'
-        
-        
-        # reemplazamos el @ por su equivalente en utf-8
-        password_escaped = password.replace('@', '%40')
+        # server = sql_params[0] #'192.168.100.50'
+        # user = sql_params[1]#'sa'
+        # password = sql_params[2]#'Adm@2487'
+        # database = sql_params[3]#'H2O_Belen'
 
-        success, error_message = set_conn(server, user, password_escaped, database)
-        if not success:
-            messagebox.showerror("Error de Conexión", error_message)
+        server = '192.168.100.50'
+        user = 'sa'
+        password = 'Adm@2487'
+        database = 'H2O_BELEN'
+        
+
+        success, error_message = set_conn(server, user, password, database)
+        
+        from db_conn import engine
+        
+        if not success or engine is None:
+            messagebox.showerror("Error de Conexión", f"Motor no inicializado. Detalles: {error_message}")
             return root
-        # input('esperar...')
+        else:
+            print("Estado de engine:", engine)  # Debe mostrar <sqlalchemy.engine.Engine ...>
     except ValueError as e:
         messagebox.showerror("Error de configuración", f"Error al configurar la conexión a la base de datos: {e}")
         return root

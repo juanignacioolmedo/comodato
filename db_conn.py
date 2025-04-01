@@ -1,32 +1,27 @@
 import os
 from sqlalchemy import create_engine, text
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.exc import OperationalError
-
-# Obtener la cadena de conexión desde la variable de entorno
-# connection_string = os.getenv("DB_CONNECTION")
-
-# if not connection_string:
-#     raise ValueError("⚠️ ERROR: La variable de entorno 'DB_CONNECTION' no está definida.")
-
-
-#connection_string = "mssql+pyodbc://sa:Adm%402487@localhost:1433/H2O_Belen_Full__Lunes?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
+from urllib.parse import quote_plus
 
 engine = None
-# engine = create_engine(connection_string)
-
+Session = scoped_session(sessionmaker())  # Inicializar con una sesión vacía
 def set_conn(server, user, passwd, database):
-    global engine
-    # Connection string for SQL Server 
-    #connection_string = "mssql+pyodbc://sa:Adm%402487@192.168.100.50:1433/H2O_TEST_473?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes"
-    timeout = 10  
-    connection_string = f"mssql+pyodbc://{user}:{passwd}@{server}:1433/{database}?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes&timeout={timeout}"
-    print('string de conexion:', connection_string)
+    global engine, Session
+    timeout = 30  
+    passwd_escaped = quote_plus(passwd)
+    connection_string = f"mssql+pyodbc://{user}:{passwd_escaped}@{server}:1433/{database}?driver=ODBC+Driver+18+for+SQL+Server&Encrypt=no&TrustServerCertificate=yes&timeout={timeout}"
+    
+    print("\n" + "="*50)
+    print("Cadena de conexión generada:")
+    print(connection_string)
+    print("="*50 + "\n")
     
     try:
-        engine = create_engine(connection_string, connect_args={'timeout': timeout})
-        with engine.connect():
-            print("Conexión exitosa.")
+        engine = create_engine(connection_string)
+        Session.configure(bind=engine)  # Vincular la sesión con la engine
+        with engine.connect() as conn:
+            print("Conexión exitosa al servidor.")
         return True, None  # Conexión exitosa
     except OperationalError as e:
         return False, "Hubo un problema con la conexión. Verifique los datos de conexión."
