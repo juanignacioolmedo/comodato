@@ -1,11 +1,9 @@
 import tkinter as tk
-from tkinter import ttk
-from tkinter import messagebox
-from db_conn import raw_select
-from db_conn import engine, set_conn, Session
+from tkinter import ttk, messagebox
 from sqlalchemy.orm import sessionmaker
 from sqlalchemy import text
-import utils, serviceairtech
+import utils, serviceairtech, db_conn
+from db_conn import raw_select
 
 # ----------------------------
 # FUNCIONES MODIFICADAS PARA SELECCIÓN MÚLTIPLE
@@ -58,13 +56,13 @@ def get_selected_ids(listbox):
 
 def fetch_repartos():
     query = "SELECT Codigo, Descrp FROM repartos"
-    data = raw_select(query)
+    data = db_conn.raw_select(query)
     return [f"{row[0]} - {row[1]}" for row in data] if data else []
 
 
 def fetch_productos():
     query = "SELECT idProducto, Descripcion FROM productos"
-    data = raw_select(query)
+    data = db_conn.raw_select(query)
     return [f"{row[0]} - {row[1]}" for row in data] if data else []
 
 
@@ -91,7 +89,7 @@ def fetch_client_data(repartos=None, productos=None):
 
     query += " GROUP BY IdCliente, Tipo, IdProducto HAVING SUM(Cantidad) <> 0 ORDER BY IdCliente,idproducto"
 
-    data = raw_select(query)
+    data = db_conn.raw_select(query)
     return [(row[0], row[1], row[2], row[3]) for row in data] if data else []
 
 
@@ -145,9 +143,11 @@ def clear_filters(treeview, reparto_listbox, producto_listbox, btn_new):
     # Desactivar el botón "Enviar Datos" al limpiar los filtros
     btn_new.config(state=tk.DISABLED)
 
+
 def select_all(treeview):
     items = treeview.get_children()
     treeview.selection_set(items)
+
 
 # ----------------------------
 # NUEVAS FUNCIONES PARA CONFIRMACIÓN Y ENVÍO
@@ -180,21 +180,21 @@ def confirm_and_send(treeview):
 
 
 def execute_insert(treeview):
-    from db_conn import Session
-    from db_conn import engine
-    
-    if engine is None:
-        messagebox.showerror("Error", "La conexión a la base de datos no está inicializada.")
+    if db_conn.engine is None:
+        messagebox.showerror(
+            "Error", "La conexión a la base de datos no está inicializada."
+        )
         return
-    session = None
     try:
-        session = Session()
+        session = db_conn.Session()
         # Obtener todos los registros del treeview
-        selected_items = treeview.selection()  
+        selected_items = treeview.selection()
         if not selected_items:
             messagebox.showwarning("Advertencia", "No hay registros seleccionados.")
             return
-        records = [treeview.item(item)['values'] for item in selected_items]        # Validar datos antes de ejecutar
+        records = [
+            treeview.item(item)["values"] for item in selected_items
+        ]  # Validar datos antes de ejecutar
         validate_records(records)
         # Contador para verificar inserts exitosos
         total_records = len(records)
@@ -222,7 +222,7 @@ def execute_insert(treeview):
             # Imprimir consulta con parámetros
             compiled_comodato = comodato_stmt.bindparams(
                 id_cliente=id_cliente, id_producto=id_producto, cantidad=cantidad
-            ).compile(bind=engine)
+            ).compile(bind=db_conn.engine)
             print("\nConsulta Comodato:")
             print(compiled_comodato)
 
@@ -250,7 +250,7 @@ def execute_insert(treeview):
             # Imprimir consulta con parámetros
             compiled_prestamo = prestamo_stmt.bindparams(
                 id_cliente=id_cliente, id_producto=id_producto, cantidad=cantidad * -1
-            ).compile(bind=engine)
+            ).compile(bind=db_conn.engine)
             print("\nConsulta Préstamo:")
             print(compiled_prestamo)
 
@@ -286,12 +286,10 @@ def execute_insert(treeview):
     finally:
         if session:
             session.close()
-        Session.remove()
+        db_conn.Session.remove()
 
 
 def verify_inserts(id_cliente, id_producto):
-    from db_conn import raw_select  # Importar la función de consulta
-
     # Consulta para verificar los inserts
     query = f"""
         SELECT Tipo, IdCliente, IdProducto, Cantidad, Fecha
@@ -303,7 +301,7 @@ def verify_inserts(id_cliente, id_producto):
     """
 
     # Ejecutar la consulta
-    result = raw_select(query)
+    result = db_conn.raw_select(query)
 
     if result:
         print("✅ Registros insertados verificados:")
@@ -383,18 +381,16 @@ def setup_window():
         password = "Adm@2487"
         database = "H2O_BELEN"
 
-        success, error_message = set_conn(server, user, password, database)
+        success, error_message = db_conn.set_conn(server, user, password, database)
 
-        from db_conn import engine
-
-        if not success or engine is None:
+        if not success or db_conn.engine is None:
             messagebox.showerror(
                 "Error de Conexión", f"Motor no inicializado. Detalles: {error_message}"
             )
             return root
         else:
             print(
-                "Estado de engine:", engine
+                "Estado de engine:", db_conn.engine
             )  # Debe mostrar <sqlalchemy.engine.Engine ...>
     except ValueError as e:
         messagebox.showerror(
@@ -443,11 +439,11 @@ def setup_window():
     btn_apply.pack(side=tk.LEFT, padx=10)
 
     btn_select_all = tk.Button(
-        button_frame, 
-        text="Seleccionar Todos", 
+        button_frame,
+        text="Seleccionar Todos",
         command=lambda: select_all(treeview),
         width=20,
-        font=button_font
+        font=button_font,
     )
     btn_select_all.pack(side=tk.LEFT, padx=10)
 
@@ -481,10 +477,10 @@ def setup_window():
     tree_frame.pack(fill=tk.BOTH, expand=True)
 
     treeview = ttk.Treeview(
-        tree_frame, 
-        columns=("Cliente", "Tipo", "Producto", "Cantidad"), 
+        tree_frame,
+        columns=("Cliente", "Tipo", "Producto", "Cantidad"),
         show="headings",
-        selectmode="extended" # Permite selección múltiple
+        selectmode="extended",  # Permite selección múltiple
     )
 
     # Configurar los encabezados
